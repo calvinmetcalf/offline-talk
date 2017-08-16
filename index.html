@@ -3,293 +3,148 @@
 <head>
   <title>Big</title>
   <meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0' />
+  <script>
+  if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').then(function(reg) {
+        // registration worked
+        console.log('Registration succeeded. Scope is ' + reg.scope);
+      }).catch(function(error) {
+        // registration failed
+        console.log('Registration failed with ' + error);
+      });
+  }
+  </script>
 <link href='big.css' rel='stylesheet' type='text/css' />
 
 <script src='big.js'></script></head><body>
-<div>
-follow along at <em>http://streams.how</em>
-</div>
-<div>
-  <em>Streams</em> and <em>You</em>:<br/> A <em>Love</em> Story<br/>
-  <em>Calvin</em> W. <em>Metcalf</em><br/>
-  Applied Geographics
-</div>
-<div>Who Am I?
-<notes>Member of stream WG</notes>
-<notes>Use streams all the time</notes>
-<notes>Make a lot of maps</notes>
-</div>
-<div><img src="img/flatearth.jpg" />Less This<notes>source: https://commons.wikimedia.org/wiki/File:Orlando-Ferguson-flat-earth-map_edit.jpg</notes>
-</div>
-<div><img src="img/drivetexas.png" />More This <notes>https://drivetexas.org, I wrote the backend...using streams</notes></div>
-<div>
-What is a <em>stream</em>?
-</div>
-<div>
-
-a <em>collection</em> of data
-<notes>Kinda like an array</notes>
-</div>
-<div>
-that may <em>not</em> be available all at <em>once</em>
-<notes>it is not a callback or a promise</notes>
-</div>
-
-
-<div>
-That can be pipelined
-<notes>supports back pressure, and makes it different from a generator</notes>
-</div>
-
-<div>
-that may not fit in memory
-<notes>this is in many ways a killer feature</notes>
-</div>
-<div>
-Using <em>streams</em>
-</div>
-<div>
-<em>Writable</em> streams
-<notes>streams that take data</notes>
-</div>
-<div>
-<pre>
-var writableFileStream = fs.createWriteStream(<em>'./path'</em>);
-var writableHttpStream = https.request({
-  method: <em>'POST'</em>
-});</pre>
-<notes>node streams are all binary streams</notes>
-<notes>ones from npm can take objects</notes>
-</div>
-<div>
-<em>.write</em> method to add data
-</div>
-<div>
-<em>.end</em> method when you are done
-<notes>can also take some data</notes>
-</div>
-<div>Can give it a <em>buffer</em>, or a <em>string</em></div>
-<div>if you give it a <em>string</em> you can specify <em>encoding</em>
-<notes>defaults to 'utf8', same encodings as buffers</notes>
-</div>
-<div>
-you can also pass a <em>callback</em>
-</div>
-<div>
-<em>'finish'</em> event is emitted when it's done writing everything
-<notes>this will come up later</notes>
-</div>
-<div>
-<em>Readable</em> streams
-<notes>streams that provide data</notes>
-</div>
-<div>
-<pre>var <em>readableFileStream</em> = fs.createReadStream(<em>'./path'</em>);
-var <em>writableHttpStream</em> = https.request({
-  method: <em>'POST'</em>
-}, function(<em>readableHttpStream</em>) {
-  // do stuff
-});</pre>
-</div>
-<div>
-<em>'data'</em> event is is emitted when a stream has data.
-<notes>this causes the stream to get you data to emit as fast as possible</notes>
-</div>
-<div>
-<em>'end'</em> event when there is no more
-</div>
-<div>
-  grab all data into a <em>buffer</em> and call a <em>callback</em>
-<pre>
-var outData = [];
-readableHttpStream
-.on(<em>'data'</em>, data => outData.push(data))
-.on(<em>'error'</em>, callback)
-.on(<em>'end'</em>, () => callback(null, Buffer.concat(outData)));
-</pre>
-</div>
-<div><em>back pressure</em>
-  <notes>when you (async) consume data slower then it is produced</notes>
-</div>
-<div>
-don't do anything async inside a <em>data</em> event listener
-</div>
-<div>
-<em>pipeing</em> allows you to do <em>async</em> stuff as it handles <em>back pressure</em>
-</div>
-<div>
-pipe to a simple write stream
-<pre>
-readableFileStream.pipe(new stream.Writable({
-  write(<em>chunk</em>, encoding, <em>next</em>) {
-    doSomethingAsync(chunk, next);
-  }
-}));
-<notes>listen for the finish event</notes>
-</pre>
-</div>
-<div>
-<em>transform</em> streams allow you to do it in steps
-</div>
-<div>
-<pre>
-var transform = new stream.Transform({
-  transform(<em>chunk</em>, encoding, <em>next</em>) {
-    doElseSomethingAsync(<em>chunk</em>, (<em>err</em>, <em>resp</em>) => {
-      if (<em>err</em>) {
-        return <em>next</em>(<em>err</em>);
-      }
-      if (!<em>resp</em>) {
-        return <em>next</em>();
-      }
-      if (!Array.isArray(<em>resp</em>)) {
-        return <em>next</em>(null, <em>resp</em>);
-      }
-      for (let <em>item</em> of <em>resp</em>) {
-        this.push(<em>item</em>);
-      }
-      <em>next</em>();
-    });
-  }
-});
-</pre>
-</div>
-<div>
-  details
-<pre>
-if (<em>err</em>) {
-  return <em>next</em>(<em>err</em>);
-}
-if (!<em>resp</em>) {
-  return <em>next</em>();
-}
-if (!Array.isArray(<em>resp</em>)) {
-  return <em>next</em>(null, <em>resp</em>);
-}
-for (let <em>item</em> of <em>resp</em>) {
-  this.push(<em>item</em>);
-}
-<em>next</em>();
-</pre>
-<notes>
-next is a callback so can take an error
-</notes>
-<notes>if only emitting one thing, next can take a value</notes>
-<notes>zero to Infinity things may be emitted</notes>
-</div>
-<div>
-  <pre>
-readableFileStream
-.pipe(transform)
-.pipe(new stream.Writable({
-  write(<em>chunk</em>, encoding, <em>next</em>) {
-    doSomethingAsync(<em>chunk</em>, <em>next</em>);
-  }
-}));
-</pre></div>
   <div>
-real life example: json stream of some sort
-  </div>
-  <div>
-    <pre>
-function makeJsonStream() {
-  var first = <em>true</em>;
-  return new stream.Transform({
-    objectMode: <em>true</em>,
-    transform(<em>chunk</em>, encoding, <em>next</em>) {
-      if (<em>first</em>) {
-        this.push(<em>'['</em>);
-        first = <em>false</em>;
-      } else {
-        this.push(<em>','</em>);
-      }
-      this.push(JSON.stringify(<em>chunk</em>));
-      <em>next</em>();
-    }
-    flush(<em>done</em>) {
-      this.push(<em>']'</em>);
-      <em>done</em>();
-    }
-  })
-}
-  </pre>
-  <notes>lets break this down</notes>
+    <a href="https://calvinmetcalf.github.io/offline-talk/">https://calvinmetcalf.github.io/offline-talk/</a>
   </div>
 <div>
-setup:
-<pre>
-function makeJsonStream() {
-  var first = <em>true</em>;
-  return new stream.Transform({
-    objectMode: <em>true</em>,
-</pre>
-<notes>note the object mode</notes>
+  Offline first maps with Calvin Metcalf
+<notes>Hello everyone and welcome to my talk</notes>
 </div>
 <div>
-the transform:
-<pre>
-transform(<em>chunk</em>, encoding, <em>next</em>) {
-  if (<em>first</em>) {
-    this.push(<em>'['</em>);
-    first = <em>false</em>;
-  } else {
-    this.push(<em>','</em>);
-  }
-  this.push(JSON.stringify(<em>chunk</em>));
-  <em>next</em>();
-}
-</pre>
+  Special spatial techniques
+  <notes>
+    The origional version of this talk was goign to be very map focused
+  </notes>
 </div>
 <div>
-wrap up:
-<pre>
-    flush(<em>done</em>) {
-      this.push(<em>']'</em>);
-      <em>done</em>();
-    }
-  })
-}
-</pre>
+  Syncing tile caches and optimizing indices and etc!
+  <notes>With things like background syncing tiles and what not</notes>
+</div>
+<div><img src="c.jpg"/>
+  Sorry
+  <notes>This is not that talk</notes>
 </div>
 <div>
-request bodies are also writable Streams<pre>
-app.get(<em>'/path.json'</em>, (req, res) => {
-  res.type(<em>'json'</em>);
-  getData()
-  .pipe(JSONStream.stringify())
-  .pipe(res);
-})
-</pre>
+  spatial isn't special
+  <notes>Methods for making all sites work offline are good enough for maps </notes>
 </div>
 <div>
-real life <em>pipeline</em> examples:
+  Defs
+  <notes>this is offline first in the sense of mobile first, it won't work offline the first time you go to it, you need connection that first time, it's the idea of designing with offline access as the first priority </notes>
 </div>
-<div>1. <em>read</em> filenames from google cloud storage</div>
-<div>2. <em>download</em> files</div>
-<div>3. <em>pull</em> 6 different stats out of each file</div>
-<div>4. <em>write</em> it to a csv</div>
-<div>5. <em>upload</em> to cloud</div>
-<div>1. <em>download</em> geodata from ESRI server</div>
-<div>2. <em>convert</em> to sane format</div>
-<div>3. <em>add</em> some extra info like the date</div>
-<div>4. if it's a line <em>make</em> and emit second feature that is a point</div>
-<div>5. <em>upload</em> to a cloud service</div>
 <div>
-great places to use streams
+  Service Workers
+  <notes>Service workers are your bread and butter of making things work offline</notes>
 </div>
-<div><img src="img/ghostbusting.jpg"/>busting ghosts</div>
-<div>ETL tasks<notes>where the data could be massive</notes></div>
-<div>user uploads<notes>where data could be massive</notes></div>
-<div>any task where you only need <em>a litle bit</em> at a time</div>
 <div>
-<ul>
-<li><a href="https://twitter.com/cwmma">@cwmma</a></li>
-<li><a href="https://github.com/calvinmetcalf">github.com/calvinmetcalf</a></li>
-<li><a href="https://npmjs.org/~cwmma">npmjs.org/~cwmma</a></li>
-<li>this presentation: <a href="http://streams.how">streams.how</a></li>
-<li><a href="https://github.com/calvinmetcalf/streams-a-love-story">more resources</a></li>
+  Seriously just service workers
+  <notes>If you do nothing else then service workers, but what are they </notes>
+</div>
+<div>
+  a worker
+  <notes>they run in seperate threads and communicate via message passing</notes>
+</div>
+<div><img src="cb1.jpg"/>with a cache
+  <notes>with access to a request cache (which is like a box)</notes>
+</div>
+<div>
+  able to intercept http requests
+  <notes>service workers have access to apis that allow them to intercept and replace all http requests</notes>
+</div>
+<div>
+  including other sites
+  <notes>this includes other sites, so you can use them on tiles</notes>
+</div>
+<div>
+  you can also precache stuff
+  <notes>you have flexibility to precache, cache on demand, and even modify the requests or responses</notes>
+</div>
+<div>so how does it work
+  <notes>when you first go to a site it installes the service worker</notes>
+</div>
+<div>
+  one worker for all tabs
+  <notes>this only happens once for a given 'scope' so multiple tabs get a single worker</notes>
+</div>
+<div>
+  multipe pages
+  <notes>this could be for all pages in a given scope</notes>
+</div>
+<div>
+  event based with promises
+  <notes>events are emitted that can be listened for for thinks like:</notes>
+</div>
+<div>
+  install
+  <notes>when the service worker gets installed, this is when you'd precache stuff</notes>
+</div>
+<div>requests
+  <notes>when any http request is made, this allows you to intercept it and maybe fulfill it from a cache</notes>
+</div>
+<div>
+  upgrade
+  <notes>when a new version of the service worker is available</notes>
+  <notes>so how can they be used</notes>
+</div>
+<div>
+  fallback
+  <notes>at the very basic a service worker can allow you to just check for responses in a cache and then possible give that back in loo of a request</notes>
+  <notes>youf can (if you want) put the result of a network request into the cache</notes>
+</div>
+<div>push notifications
+  <notes>the service worker can be woken up even if the page isn't open (with permision)</notes>
+</div>
+<div>
+serverless<notes>you can for an advanced case somewhat use a service worker in place of a worker to generate some of the content</notes>
+</div>
+<div><img src="dd.jpg"/>
+  <em>danger</em>
+  <notes>But I'm not sure I'd rely on ALL sites neccisarily supporting them </notes>
+</div>
+<div>
+  Firefox and Chrome <em>only</em>
+  <notes>only the non default browsers corently support workers, so I'd not design yoru site to rely on it</notes>
+  <notes>also of note</notes>
+</div>
+
+<div>
+  <em>must</em> be https
+  <notes>it must be in https, this shouldn't be a problem</notes>
+</div>
+<div>
+  let's encrypt
+  <notes>as you really don't have any exuse these days, espeicially as geolocation also requires https these days</notes>
+</div>
+<div>Resources:<ul>
+<li><a href="https://serviceworke.rs/">https://serviceworke.rs/</a></li>
+<li><a href="https://calvinmetcalf.github.io/offline-talk/">this very presentation</a></li>
+<li><a href="https://jakearchibald.com/2014/offline-cookbook/">https://jakearchibald.com/2014/offline-cookbook/</a></li>
+<li><a href="https://www.udacity.com/course/offline-web-applications--ud899">https://www.udacity.com/course/offline-web-applications--ud899</a></li>
 </ul>
+  <notes>some resources</notes>
 </div>
 
+<div>fin
+  <notes>questions?</notes>
+</div>
 </body>
 </html>
+<!--
+<div>
+  <notes></notes>
+</div>
+-->
