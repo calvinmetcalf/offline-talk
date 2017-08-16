@@ -17,7 +17,8 @@ self.addEventListener('install', function(event) {
         'https://calvinmetcalf.github.io/offline-talk/big.css',
         'https://calvinmetcalf.github.io/offline-talk/cb1.jpg',
         'https://calvinmetcalf.github.io/offline-talk/c.jpg',
-        'https://calvinmetcalf.github.io/offline-talk/dd.jpg'
+        'https://calvinmetcalf.github.io/offline-talk/dd.jpg',
+        'https://calvinmetcalf.github.io/favicon.ico'
       ])
     })
   )
